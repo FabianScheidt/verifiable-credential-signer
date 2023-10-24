@@ -1,0 +1,22 @@
+{
+  "name": "verifiable-credential-signer",
+  "version": "1.0.0",
+  "description": "Signs arbitrary verifiable credentials and presentations",
+  "main": "index.ts",
+  "license": "MIT",
+  "scripts": {
+    "start": "ts-node --transpile-only src/index.ts"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "jsonld": "^8.3.1",
+    "node-jose": "^2.2.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.1.6"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.17",
+    "@types/jsonld": "^1.5.10",
+    "@types/node-jose": "^1.1.10"
+  }
+}
