@@ -1,4 +1,5 @@
-import { JWK, JWS } from "node-jose";
+import { JWK } from "node-jose";
+import { CompactSign, importJWK } from "jose";
 import { canonize, JsonLdDocument } from "jsonld";
 import * as crypto from "crypto";
 import { JsonLdObj } from "jsonld/jsonld-spec";
@@ -35,26 +36,23 @@ export async function signVerifiableCredential<T extends JsonLdObj>(
   // Normalize VC
   const credentialNormalized = await normalize(verifiableCredential);
   const credentialHashed = await hash(credentialNormalized);
+  const credentialEncoded = new TextEncoder().encode(credentialHashed);
 
-  // Import key
+  // Import key using "node-jose" to support various key formats
   const keystore = JWK.createKeyStore();
   const key = await keystore.add(pemPrivateKey, "pem");
 
-  // Determine signature
-  const signOptions: JWS.SignOptions = { format: "compact", alg: "PS256" };
-  const credentialJws = await JWS.createSign(signOptions, key)
-    .update(credentialHashed, "utf8")
-    .final();
-
-  // Sign result is actually a string if the compact format is used:
-  // https://github.com/cisco/node-jose#signing-content
-  const credentialJwsStr = credentialJws as unknown as string;
+  // Sign using "jose" to support unencoded payload option according to RFC 7797
+  const signKey = await importJWK(key.toJSON(true) as Record<string, unknown>);
+  const credentialJws = await new CompactSign(credentialEncoded)
+    .setProtectedHeader({ alg: "PS256", b64: false, crit: ["b64"] })
+    .sign(signKey);
 
   // Add proof and return result
   return addJsonWebSignature2020Proof(
     verifiableCredential,
     verificationMethod,
-    credentialJwsStr,
+    credentialJws,
   );
 }
 
