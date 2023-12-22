@@ -30,3 +30,8 @@ KEY=$(cat key.pem) VERIFICATION_METHOD=did:web:example.com#X509-JWK2020 yarn sta
 
 If you use Docker, there is a prebuilt image available, which is kept up to date with this repository:
 [fabisch/verifiable-credential-signer:latest](https://hub.docker.com/r/fabisch/verifiable-credential-signer)
+
+## Usage as Package
+
+The signing functionality can also be used through an npm package:
+[@fabianscheidt/verifiable-credential-signer](https://www.npmjs.com/package/@fabianscheidt/verifiable-credential-signer)
