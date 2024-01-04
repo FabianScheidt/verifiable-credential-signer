@@ -1,8 +1,19 @@
 import { JWK } from "node-jose";
 import { CompactSign, importJWK } from "jose";
-import { canonize, JsonLdDocument } from "jsonld";
+import { canonize, expand, JsonLdDocument } from "jsonld";
 import * as crypto from "crypto";
 import { JsonLdObj } from "jsonld/jsonld-spec";
+
+const SIGNATURE_TYPE = "https://w3id.org/security#JsonWebSignature2020";
+const CREDENTIAL_TYPE =
+  "https://www.w3.org/2018/credentials#VerifiableCredential";
+const PRESENTATION_TYPE =
+  "https://www.w3.org/2018/credentials#VerifiablePresentation";
+
+type Credential = JsonLdObj & {
+  id: JsonLdObj["@id"];
+  type: JsonLdObj["@type"];
+};
 
 interface JsonWebSignature2020Proof {
   type: "JsonWebSignature2020";
@@ -12,7 +23,7 @@ interface JsonWebSignature2020Proof {
   jws: string;
 }
 
-export async function signVerifiableCredential<T extends JsonLdObj>(
+export async function signVerifiableCredential<T extends Credential>(
   pemPrivateKey: string,
   verificationMethod: string,
   verifiableCredential: T,
@@ -20,18 +31,48 @@ export async function signVerifiableCredential<T extends JsonLdObj>(
   // Drop potentially existing proof
   delete verifiableCredential.proof;
 
-  // Ensure that VC context contains JsonWebKey2020
-  if (!(await checkForJsonWebKey2020Context(verifiableCredential))) {
-    const proofContext = "https://w3id.org/security/suites/jws-2020/v1";
-    const vcContext = verifiableCredential["@context"] ?? [];
-    const vcContextArray = Array.isArray(vcContext)
-      ? [...vcContext, proofContext]
-      : [vcContext, proofContext];
-    verifiableCredential = {
-      ...verifiableCredential,
-      "@context": vcContextArray,
-    };
+  // Ensure that the document's type is either a credential or presentation
+  const expanded = (await expand(verifiableCredential))[0];
+  const eType = expanded["@type"] ?? [];
+  const eTypes = Array.isArray(eType) ? eType : [eType];
+  let isCredential = eTypes.includes(CREDENTIAL_TYPE);
+  const isPresentation = eTypes.includes(PRESENTATION_TYPE);
+  if (!isCredential && !isPresentation) {
+    const type =
+      verifiableCredential["type"] ?? verifiableCredential["@type"] ?? [];
+    verifiableCredential["type"] = Array.isArray(type)
+      ? [...type, "VerifiableCredential"]
+      : [type, "VerifiableCredential"];
+    delete verifiableCredential["@type"];
+    isCredential = true;
   }
+
+  // Ensure that the required contexts are present
+  const [
+    hasSignatureType,
+    hasCredentialType,
+    hasPresentationType,
+    hasTypeType,
+  ] = await checkContextForTypes(
+    verifiableCredential,
+    ["JsonWebSignature2020", SIGNATURE_TYPE],
+    ["VerifiableCredential", CREDENTIAL_TYPE],
+    ["VerifiablePresentation", PRESENTATION_TYPE],
+    ["type", "@type"],
+  );
+  const context = verifiableCredential["@context"] ?? [];
+  const contexts = Array.isArray(context) ? [...context] : [context];
+  if (!hasSignatureType) {
+    contexts.push("https://w3id.org/security/suites/jws-2020/v1");
+  }
+  if (
+    (isCredential && !hasCredentialType) ||
+    (isPresentation && !hasPresentationType) ||
+    !hasTypeType
+  ) {
+    contexts.push("https://www.w3.org/2018/credentials/v1");
+  }
+  verifiableCredential["@context"] = contexts;
 
   // Normalize VC
   const credentialNormalized = await normalize(verifiableCredential);
@@ -56,16 +97,19 @@ export async function signVerifiableCredential<T extends JsonLdObj>(
   );
 }
 
-async function checkForJsonWebKey2020Context(
+async function checkContextForTypes(
   verifiableCredential: JsonLdObj,
-): Promise<boolean> {
-  // There is probably a smarter solution, but here we simply add the required keys and see if the validation fails.
-  try {
-    await normalize(addJsonWebSignature2020Proof(verifiableCredential, "", ""));
-  } catch (e) {
-    return false;
-  }
-  return true;
+  ...types: [string, string][]
+): Promise<boolean[]> {
+  const compactTypes = types.map((t) => t[0]);
+  const expandedTypes = types.map((t) => t[1]);
+  const validation = (
+    await expand({
+      "@context": verifiableCredential["@context"],
+      "@type": compactTypes,
+    })
+  )[0];
+  return types.map((t, i) => !!validation["@type"]?.includes(expandedTypes[i]));
 }
 
 async function normalize(payload: JsonLdDocument) {
@@ -85,11 +129,11 @@ async function hash(payload: string) {
     .join("");
 }
 
-function addJsonWebSignature2020Proof<T extends JsonLdObj>(
+export async function addJsonWebSignature2020Proof<T extends JsonLdObj>(
   verifiableCredential: T,
   verificationMethod: string,
   jws: string,
-): T & { proof: JsonWebSignature2020Proof } {
+): Promise<T & { proof: JsonWebSignature2020Proof }> {
   return {
     ...verifiableCredential,
     proof: {
