@@ -1,8 +1,8 @@
-import { JWK } from "node-jose";
-import { CompactSign, importJWK } from "jose";
-import { canonize, expand, JsonLdDocument } from "jsonld";
-import * as crypto from "crypto";
+import * as nodeJose from "node-jose";
+import { JWK } from "jose";
+import { expand } from "jsonld";
 import { JsonLdObj } from "jsonld/jsonld-spec";
+import { normalize, sha256, sign } from "./sign-utils";
 
 const SIGNATURE_TYPE = "https://w3id.org/security#JsonWebSignature2020";
 const CREDENTIAL_TYPE =
@@ -24,11 +24,13 @@ interface JsonWebSignature2020Proof {
 }
 
 export async function signVerifiableCredential<T extends Credential>(
-  pemPrivateKey: string,
+  privateKey: string | JWK,
   verificationMethod: string,
   verifiableCredential: T,
+  options?: { flavour?: "Specification" | "Gaia-X"; created?: string },
 ): Promise<T & { proof: JsonWebSignature2020Proof }> {
-  // Drop potentially existing proof
+  // Create copy and drop potentially existing proof
+  verifiableCredential = { ...verifiableCredential };
   delete verifiableCredential.proof;
 
   // Ensure that the document's type is either a credential or presentation
@@ -76,24 +78,53 @@ export async function signVerifiableCredential<T extends Credential>(
 
   // Normalize VC
   const credentialNormalized = await normalize(verifiableCredential);
-  const credentialHashed = await hash(credentialNormalized);
-  const credentialEncoded = new TextEncoder().encode(credentialHashed);
 
-  // Import key using "node-jose" to support various key formats
-  const keystore = JWK.createKeyStore();
-  const key = await keystore.add(pemPrivateKey, "pem");
+  // Create normalized proof
+  const created = options?.created ?? new Date().toISOString();
+  const proof: Record<string, unknown> = {
+    "@context": [
+      "https://www.w3.org/2018/credentials/v1",
+      "https://w3id.org/security/suites/jws-2020/v1",
+    ],
+    ...getJsonWebSignature2020Proof(verificationMethod, "", created),
+  };
+  delete proof.jws;
+  const proofNormalized = await normalize(proof);
+
+  let payload: Uint8Array;
+  switch (options?.flavour) {
+    case "Gaia-X":
+      const hashed = sha256(credentialNormalized);
+      payload = new TextEncoder().encode(hashed.toString("hex"));
+      break;
+    case "Specification":
+    default:
+      payload = Buffer.concat([
+        sha256(proofNormalized),
+        sha256(credentialNormalized),
+      ]);
+      break;
+  }
+
+  // Optionally import key using "node-jose" to support PEM key formats
+  let jwk: JWK;
+  if (typeof privateKey === "string") {
+    const keystore = nodeJose.JWK.createKeyStore();
+    const key = await keystore.add(privateKey, "pem");
+    jwk = key.toJSON(true) as JWK;
+  } else {
+    jwk = privateKey;
+  }
 
   // Sign using "jose" to support unencoded payload option according to RFC 7797
-  const signKey = await importJWK(key.toJSON(true) as Record<string, unknown>);
-  const credentialJws = await new CompactSign(credentialEncoded)
-    .setProtectedHeader({ alg: "PS256", b64: false, crit: ["b64"] })
-    .sign(signKey);
+  const credentialJws = await sign(jwk, payload);
 
   // Add proof and return result
   return addJsonWebSignature2020Proof(
     verifiableCredential,
     verificationMethod,
     credentialJws,
+    created,
   );
 }
 
@@ -112,36 +143,28 @@ async function checkContextForTypes(
   return types.map((t, i) => !!validation["@type"]?.includes(expandedTypes[i]));
 }
 
-async function normalize(payload: JsonLdDocument) {
-  return await canonize(payload, {
-    algorithm: "URDNA2015",
-    format: "application/n-quads",
-  });
-}
-
-async function hash(payload: string) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(payload);
-  const digestBuffer = await crypto.subtle.digest("SHA-256", data);
-  const digestArray = new Uint8Array(digestBuffer);
-  return Array.from(digestArray)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-export async function addJsonWebSignature2020Proof<T extends JsonLdObj>(
+export function addJsonWebSignature2020Proof<T extends JsonLdObj>(
   verifiableCredential: T,
   verificationMethod: string,
   jws: string,
-): Promise<T & { proof: JsonWebSignature2020Proof }> {
+  created: string,
+): T & { proof: JsonWebSignature2020Proof } {
   return {
     ...verifiableCredential,
-    proof: {
-      type: "JsonWebSignature2020",
-      created: new Date().toISOString(),
-      proofPurpose: "assertionMethod",
-      verificationMethod,
-      jws,
-    },
+    proof: getJsonWebSignature2020Proof(verificationMethod, jws, created),
+  };
+}
+
+export function getJsonWebSignature2020Proof(
+  verificationMethod: string,
+  jws: string,
+  created: string,
+): JsonWebSignature2020Proof {
+  return {
+    type: "JsonWebSignature2020",
+    created,
+    proofPurpose: "assertionMethod",
+    verificationMethod,
+    jws,
   };
 }

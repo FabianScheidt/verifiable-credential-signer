@@ -1,6 +1,6 @@
 {
   "name": "@fabianscheidt/verifiable-credential-signer",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Signs arbitrary verifiable credentials and presentations",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -10,6 +10,7 @@
   "license": "MIT",
   "scripts": {
     "start": "ts-node --transpile-only src/main.ts",
+    "test": "node --test --require ts-node/register src/*.spec.ts",
     "build": "tsc"
   },
   "dependencies": {
