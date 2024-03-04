@@ -93,10 +93,11 @@ export async function signVerifiableCredential<T extends Credential>(
 
   let payload: Uint8Array;
   switch (options?.flavour) {
-    case "Gaia-X":
+    case "Gaia-X": {
       const hashed = sha256(credentialNormalized);
       payload = new TextEncoder().encode(hashed.toString("hex"));
       break;
+    }
     case "Specification":
     default:
       payload = Buffer.concat([
