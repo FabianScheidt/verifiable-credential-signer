@@ -10,12 +10,12 @@ const CREDENTIAL_TYPE =
 const PRESENTATION_TYPE =
   "https://www.w3.org/2018/credentials#VerifiablePresentation";
 
-type Credential = JsonLdObj & {
+interface Credential extends JsonLdObj {
   id: JsonLdObj["@id"];
   type: JsonLdObj["@type"];
-};
+}
 
-interface JsonWebSignature2020Proof {
+interface JsonWebSignature2020Proof extends JsonLdObj {
   type: "JsonWebSignature2020";
   created: string;
   proofPurpose: "assertionMethod";
