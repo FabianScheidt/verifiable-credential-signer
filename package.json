@@ -1,6 +1,6 @@
 {
   "name": "@fabianscheidt/verifiable-credential-signer",
-  "version": "1.3.2",
+  "version": "1.4.0",
   "description": "Signs arbitrary verifiable credentials and presentations",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
