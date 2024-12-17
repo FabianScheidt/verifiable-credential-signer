@@ -1,6 +1,6 @@
 {
   "name": "@fabianscheidt/verifiable-credential-signer",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "Signs arbitrary verifiable credentials and presentations",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -16,7 +16,7 @@
     "build": "tsc"
   },
   "dependencies": {
-    "express": "^4.21.1",
+    "express": "^4.21.2",
     "jose": "^5.9.3",
     "jsonld": "^8.3.2",
     "node-jose": "^2.2.0",
