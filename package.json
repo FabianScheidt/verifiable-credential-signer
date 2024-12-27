@@ -1,6 +1,6 @@
 {
   "name": "@fabianscheidt/verifiable-credential-signer",
-  "version": "1.4.3",
+  "version": "0.0.0-PLACEHOLDER",
   "description": "Signs arbitrary verifiable credentials and presentations",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -8,6 +8,10 @@
     "/dist"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/FabianScheidt/verifiable-credential-signer.git"
+  },
   "scripts": {
     "start": "ts-node --transpile-only src/main.ts",
     "format": "prettier --write .",

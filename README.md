@@ -24,7 +24,7 @@ The service is configured via environment variables.
 You can run it locally by e.g., putting your private key into a file and running:
 
 ```
-KEY=$(cat key.pem) VERIFICATION_METHOD=did:web:example.com#X509-JWK2020 yarn start
+KEY=$(cat key.pem) VERIFICATION_METHOD=did:web:example.com#X509-JWK2020 npm run start
 ```
 
 ## Running Tests
@@ -32,7 +32,7 @@ KEY=$(cat key.pem) VERIFICATION_METHOD=did:web:example.com#X509-JWK2020 yarn sta
 You can execute the available unit tests by running:
 
 ```
-yarn test
+npm run test
 ```
 
 ## Deployment
