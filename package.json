@@ -22,7 +22,7 @@
   "dependencies": {
     "express": "^4.21.2",
     "jose": "^5.9.3",
-    "jsonld": "^8.3.2",
+    "jsonld": "^9.0.0",
     "node-jose": "^2.2.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.2"
