@@ -1,4 +1,4 @@
-import * as nodeJose from "node-jose";
+import * as crypto from "crypto";
 import { JWK } from "jose";
 import { expand } from "jsonld";
 import { JsonLdObj } from "jsonld/jsonld-spec";
@@ -107,12 +107,9 @@ export async function signVerifiableCredential<T extends Credential>(
       break;
   }
 
-  // Optionally import key using "node-jose" to support PEM key formats
   let jwk: JWK;
   if (typeof privateKey === "string") {
-    const keystore = nodeJose.JWK.createKeyStore();
-    const key = await keystore.add(privateKey, "pem");
-    jwk = key.toJSON(true) as JWK;
+    jwk = crypto.createPrivateKey(privateKey).export({ format: "jwk" }) as JWK;
   } else {
     jwk = privateKey;
   }
