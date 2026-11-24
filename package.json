@@ -31,6 +31,6 @@
     "@types/jsonld": "^1.5.15",
     "eslint": "^9.11.1",
     "prettier": "^3.3.3",
-    "typescript-eslint": "^8.7.0"
+    "typescript-eslint": "^8.74.0"
   }
 }
